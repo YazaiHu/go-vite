@@ -3,6 +3,7 @@ package p2p
 import (
 	"fmt"
 	"github.com/vitelabs/go-vite/common"
+	"github.com/vitelabs/go-vite/monitor"
 	"io"
 	"net"
 	"sync"
@@ -257,6 +258,7 @@ func (p *Peer) handleMsg(msg *Msg) {
 			select {
 			case pf.input <- msg:
 			default:
+				monitor.LogEvent("p2p", "discard")
 				p.log.Warn(fmt.Sprintf("protocol is busy, discard message %d/%d", cmdset, cmd))
 				msg.Recycle()
 			}
