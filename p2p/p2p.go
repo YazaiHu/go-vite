@@ -146,8 +146,6 @@ func (svr *Server) Start() error {
 	svr.log.Info(fmt.Sprintf("tcp listen at %s", svr.addr))
 	svr.ln = listener
 
-	svr.term = make(chan struct{})
-
 	svr.log.Info("p2p server start")
 
 	// mapping tcp
@@ -268,16 +266,17 @@ func (svr *Server) dial(id discovery.NodeID, addr *net.TCPAddr, flag connFlag) {
 		return
 	}
 
-	svr.pending <- struct{}{}
-	if conn, err := svr.dialer.Dial("tcp", addr.String()); err == nil {
-		common.Go(func() {
+	common.Go(func() {
+		svr.pending <- struct{}{}
+
+		if conn, err := svr.dialer.Dial("tcp", addr.String()); err == nil {
 			svr.setupConn(conn, flag)
-		})
-	} else {
-		<-svr.pending
-		svr.log.Error(fmt.Sprintf("dial node %s@%s failed: %v", id, addr, err))
-		//svr.blockList.Add(id[:])
-	}
+		} else {
+			<-svr.pending
+			svr.log.Error(fmt.Sprintf("dial node %s@%s failed: %v", id, addr, err))
+			//svr.blockList.Add(id[:])
+		}
+	})
 }
 
 func (svr *Server) listenLoop() {

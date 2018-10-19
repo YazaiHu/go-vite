@@ -189,6 +189,7 @@ wait:
 	if current.Height >= p.height || current.Height+minSubLedger > p.height {
 		// I`am not tall enough, then send my current block to p
 		if current.Height > p.height && current.Height <= p.height+minSubLedger {
+			// todo should fetch not send
 			p.SendNewSnapshotBlock(current)
 		}
 
@@ -197,6 +198,7 @@ wait:
 		return
 	}
 
+	// todo: should not sync with best peer directly in consider of security
 	s.from = current.Height + 1
 	s.to = p.height
 	s.total = s.to - s.from + 1

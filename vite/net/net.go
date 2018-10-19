@@ -155,7 +155,7 @@ func (n *net) Stop() {
 
 		n.syncer.Stop()
 
-		n.pool.start()
+		n.pool.stop()
 
 		n.fs.stop()
 
@@ -227,6 +227,7 @@ func (n *net) startPeer(p *Peer) error {
 var errMissHandler = errors.New("missing message handler")
 
 func (n *net) handleMsg(p *Peer) (err error) {
+	// todo, may block net.Stop()
 	msg, err := p.mrw.ReadMsg()
 	if err != nil {
 		n.log.Error(fmt.Sprintf("read message from %s error: %v", p, err))

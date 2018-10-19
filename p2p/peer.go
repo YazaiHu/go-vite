@@ -75,14 +75,7 @@ func (pf *protoFrame) ReadMsg() (msg *Msg, err error) {
 }
 
 func (pf *protoFrame) WriteMsg(msg *Msg) (err error) {
-	select {
-	case <-pf.term:
-		return errPeerTermed
-	case pf.canWrite <- struct{}{}:
-		err = pf.conn.SendMsg(msg)
-		<-pf.canWrite
-		return err
-	}
+	return pf.conn.SendMsg(msg)
 }
 
 // create multiple protoFrames above the rw
@@ -152,7 +145,7 @@ func (p *Peer) Disconnect(reason DiscReason) {
 	}
 }
 
-func (p *Peer) runProtocols() {
+func (p *Peer) startProtocols() {
 	p.wg.Add(len(p.protoFrames))
 	canWrite := make(chan struct{}, paralProtoFrame)
 
@@ -179,7 +172,7 @@ func (p *Peer) run() (err error) {
 
 	p.ts.Start()
 
-	p.runProtocols()
+	p.startProtocols()
 
 	var proactively bool // whether we want to disconnect or not
 	var reason DiscReason
@@ -197,7 +190,7 @@ loop:
 			p.log.Error(fmt.Sprintf("protocol %s is done: %v", e.name, e.err))
 
 			delete(p.protoFrames, e.id)
-
+			// todo: any protoFrame is down, then disconnect the peer
 			if len(p.protoFrames) == 0 {
 				if err == nil {
 					err = DiscAllProtocolDone

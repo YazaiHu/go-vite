@@ -47,6 +47,7 @@ type context interface {
 	Get(id uint64) Request
 }
 
+// todo request should hold all failed peers
 type Request interface {
 	Handle(ctx context, msg *p2p.Msg, peer *Peer)
 	ID() uint64
@@ -92,10 +93,11 @@ func splitSubLedger(from, to uint64, peers Peers) (cs []*subLedgerPiece) {
 
 	total := to - from + 1
 	if total < minSubLedger || peerCount == 1 {
+		// todo random a sutiable peer, not best peer
 		cs = append(cs, &subLedgerPiece{
 			from: from,
 			to:   to,
-			peer: peers[peerCount-1], // choose the tallest peer
+			peer: peers[peerCount-1],
 		})
 		return
 	}

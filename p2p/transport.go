@@ -123,7 +123,7 @@ type AsyncMsgConn struct {
 	wqueue  chan *Msg
 	errored int32      // atomic, indicate whehter there is an error, readErr(1), writeErr(2)
 	errch   chan error // report errch to upper layer
-	speed   int        // transport speed, bytes/ns
+	speed   int64      // transport speed, bytes/ns
 }
 
 // create an AsyncMsgConn, fd is the basic connection
@@ -133,6 +133,7 @@ func NewAsyncMsgConn(fd net.Conn) *AsyncMsgConn {
 		term:   make(chan struct{}),
 		wqueue: make(chan *Msg, writeBufferLen),
 		errch:  make(chan error),
+		speed:  1000,
 	}
 }
 
@@ -168,13 +169,14 @@ func (c *AsyncMsgConn) readLoop() {
 			return
 		default:
 			//c.fd.SetReadDeadline(time.Now().Add(msgReadTimeout))
+			now := time.Now()
 			if msg, err := ReadMsg(c.fd); err == nil {
 				monitor.LogEvent("p2p_ts", "read")
 				monitor.LogDuration("p2p_ts", "read_bytes", int64(msg.Size))
+				atomic.StoreInt64(&c.speed, time.Now().Sub(now).Nanoseconds()/int64(msg.Size))
 
 				c.handler(msg)
 			} else {
-				fmt.Println("read error", err)
 				c.report(1, err)
 				return
 			}
@@ -221,7 +223,7 @@ func (c *AsyncMsgConn) SendMsg(msg *Msg) error {
 	if atomic.LoadInt32(&c.errored) != 0 {
 		return errTSerrored
 	}
-
+	// todo maybe should cancel select
 	select {
 	case <-c.term:
 		return errTSclosed

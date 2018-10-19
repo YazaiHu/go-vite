@@ -73,7 +73,7 @@ func (p *Peer) Handshake(our *message.HandShake) error {
 	}
 
 	if their.Genesis != our.Genesis {
-		return errors.New("different genesis block")
+		return fmt.Errorf("different genesis block, our %s, their %s", our.Genesis, their.Genesis)
 	}
 
 	p.SetHead(their.Current, their.Height)
