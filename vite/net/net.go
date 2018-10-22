@@ -206,9 +206,9 @@ func (n *net) startPeer(p *Peer) error {
 		case <-n.term:
 			return p2p.DiscQuitting
 
-		//case err := <-p.errch:
-		//	n.log.Error(fmt.Sprintf("peer error: %v", err))
-		//	return p2p.DiscProtocolError
+		case err := <-p.errch:
+			n.log.Error(fmt.Sprintf("peer %s error: %v", p.String(), err))
+			return p2p.DiscProtocolError
 
 		case <-ticker.C:
 			current := n.Chain.GetLatestSnapshotBlock()
@@ -216,6 +216,7 @@ func (n *net) startPeer(p *Peer) error {
 				Hash:   current.Hash,
 				Height: current.Height,
 			})
+
 		default:
 			if err := n.handleMsg(p); err != nil {
 				return err
@@ -227,7 +228,6 @@ func (n *net) startPeer(p *Peer) error {
 var errMissHandler = errors.New("missing message handler")
 
 func (n *net) handleMsg(p *Peer) (err error) {
-	// todo, may block net.Stop()
 	msg, err := p.mrw.ReadMsg()
 	if err != nil {
 		n.log.Error(fmt.Sprintf("read message from %s error: %v", p, err))

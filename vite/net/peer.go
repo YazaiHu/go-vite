@@ -10,6 +10,7 @@ import (
 	"github.com/vitelabs/go-vite/log15"
 	"github.com/vitelabs/go-vite/p2p"
 	"github.com/vitelabs/go-vite/vite/net/message"
+	"math"
 	net2 "net"
 	"sort"
 	"strconv"
@@ -293,6 +294,34 @@ func (m *peerSet) BestPeer() (best *Peer) {
 		if peerHeight > maxHeight {
 			maxHeight = peerHeight
 			best = peer
+		}
+	}
+
+	return
+}
+
+func (m *peerSet) PeerToSync(base uint64) (target *Peer, enough bool) {
+	tallers := m.Pick(base)
+	num := len(tallers)
+	if num == 0 {
+		return
+	}
+
+	total := m.Count()
+	enough = len(tallers) > total/3
+
+	var vHeight uint64
+	for _, p := range tallers {
+		vHeight += p.height / uint64(num)
+	}
+
+	var minDelta = math.Sqrt(math.Pow(float64(tallers[0].height-vHeight), 2.0))
+	var delta float64
+	for _, p := range tallers {
+		delta = math.Sqrt(math.Pow(float64(p.height-vHeight), 2.0))
+		if delta < minDelta {
+			delta = minDelta
+			target = p
 		}
 	}
 

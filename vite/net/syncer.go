@@ -2,6 +2,7 @@ package net
 
 import (
 	"fmt"
+	"github.com/vitelabs/go-vite/vite/net/message"
 	"sync/atomic"
 	"time"
 
@@ -185,12 +186,14 @@ wait:
 
 	// compare snapshot chain height
 	current := s.chain.GetLatestSnapshotBlock()
-	// p is lower than me, or p is not all enough, no need to sync
-	if current.Height >= p.height || current.Height+minSubLedger > p.height {
-		// I`am not tall enough, then send my current block to p
-		if current.Height > p.height && current.Height <= p.height+minSubLedger {
-			// todo should fetch not send
-			p.SendNewSnapshotBlock(current)
+	// p is not all enough, no need to sync
+	if current.Height+minSubLedger > p.height {
+		if current.Height < p.height {
+			p.Send(GetSnapshotBlocksCode, 0, &message.GetSnapshotBlocks{
+				From:    ledger.HashHeight{Hash: p.head},
+				Count:   1,
+				Forward: true,
+			})
 		}
 
 		s.log.Info(fmt.Sprintf("no need sync to bestPeer %s at %d, our height: %d", p, p.height, current.Height))
@@ -198,9 +201,27 @@ wait:
 		return
 	}
 
-	// todo: should not sync with best peer directly in consider of security
+	// sync to the average peer
+	target, enoughToSync := s.peers.PeerToSync(current.Height)
+	if target == nil {
+		s.log.Warn("choose sync target is nil")
+		s.setState(Syncdone)
+		return
+	}
+
+	if !enoughToSync || current.Height+minSubLedger > target.height {
+		s.log.Warn("no enough peers to sync, or target is not tall enough")
+		target.Send(GetSnapshotBlocksCode, 0, &message.GetSnapshotBlocks{
+			From:    ledger.HashHeight{Hash: target.head},
+			Count:   1,
+			Forward: true,
+		})
+		s.setState(Syncdone)
+		return
+	}
+
 	s.from = current.Height + 1
-	s.to = p.height
+	s.to = target.height
 	s.total = s.to - s.from + 1
 	s.count = 0
 	s.setState(Syncing)
