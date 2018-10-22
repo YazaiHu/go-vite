@@ -221,9 +221,9 @@ func (svr *Server) updateNode(addr *nat.Addr) {
 }
 
 func (svr *Server) setHandshake() {
-	cmdsets := make([]*CmdSet, len(svr.Protocols))
+	cmdsets := make([]CmdSet, len(svr.Protocols))
 	for i, p := range svr.Protocols {
-		cmdsets[i] = p.CmdSet()
+		cmdsets[i] = p.ID
 	}
 
 	svr.handshake = &Handshake{

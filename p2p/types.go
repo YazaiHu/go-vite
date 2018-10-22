@@ -67,40 +67,8 @@ func (f connFlag) is(f2 connFlag) bool {
 	return (f & f2) != 0
 }
 
-// @section CmdSetID
-
-type CmdSet struct {
-	ID   uint64
-	Name string
-}
-
-func (s *CmdSet) Serialize() ([]byte, error) {
-	return proto.Marshal(s.Proto())
-}
-
-func (s *CmdSet) Deserialize(buf []byte) error {
-	pb := new(protos.CmdSet)
-	err := proto.Unmarshal(buf, pb)
-	if err != nil {
-		return err
-	}
-	s.ID = pb.ID
-	s.Name = pb.Name
-	return nil
-}
-
-func (s *CmdSet) String() string {
-	return s.Name + "/" + strconv.FormatUint(s.ID, 10)
-}
-
-func (s *CmdSet) Proto() *protos.CmdSet {
-	return &protos.CmdSet{
-		ID:   s.ID,
-		Name: s.Name,
-	}
-}
-
 // @section Msg
+type CmdSet = uint64
 type Msg struct {
 	CmdSet     uint64
 	Cmd        uint32
@@ -152,13 +120,6 @@ func (p *Protocol) String() string {
 	return p.Name + "/" + strconv.FormatUint(p.ID, 10)
 }
 
-func (p *Protocol) CmdSet() *CmdSet {
-	return &CmdSet{
-		ID:   p.ID,
-		Name: p.Name,
-	}
-}
-
 // handshake message
 type Handshake struct {
 	Version uint64
@@ -169,7 +130,7 @@ type Handshake struct {
 	// peer remoteID
 	ID discovery.NodeID
 	// command set supported
-	CmdSets []*CmdSet
+	CmdSets []CmdSet
 	// peer`s IP
 	RemoteIP net.IP
 	// peer`s Port
@@ -177,17 +138,11 @@ type Handshake struct {
 }
 
 func (hs *Handshake) Serialize() ([]byte, error) {
-	cmdsets := make([]*protos.CmdSet, len(hs.CmdSets))
-
-	for i, cmdset := range hs.CmdSets {
-		cmdsets[i] = cmdset.Proto()
-	}
-
 	return proto.Marshal(&protos.Handshake{
 		NetID:      uint64(hs.NetID),
 		Name:       hs.Name,
 		ID:         hs.ID[:],
-		CmdSets:    cmdsets,
+		CmdSets:    hs.CmdSets,
 		RemoteIP:   hs.RemoteIP,
 		RemotePort: uint32(hs.RemotePort),
 	})
@@ -211,16 +166,7 @@ func (hs *Handshake) Deserialize(buf []byte) error {
 	hs.Name = pb.Name
 	hs.RemoteIP = pb.RemoteIP
 	hs.RemotePort = uint16(pb.RemotePort)
-
-	cmdsets := make([]*CmdSet, len(pb.CmdSets))
-	for i, cmdset := range pb.CmdSets {
-		cmdsets[i] = &CmdSet{
-			ID:   cmdset.ID,
-			Name: cmdset.Name,
-		}
-	}
-
-	hs.CmdSets = cmdsets
+	hs.CmdSets = pb.CmdSets
 
 	return nil
 }
